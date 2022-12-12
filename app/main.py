@@ -12,6 +12,7 @@ async def root():
 async def get_users():
     return f"Endpoint for getting all the users."
 
+
 @app.get("/users/{id}")
 async def get_user(id: int):
     return f"This is the id that was sent through {id}."
