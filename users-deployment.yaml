@@ -16,7 +16,7 @@ spec:
         - image: hieronymusa/prva_py
           name: fa-users
           ports:
-            - containerPort: 8080
+            - containerPort: 8082
               name: server
               protocol: TCP
 
@@ -27,9 +27,9 @@ kind: Service
 metadata:
   name: fa-users
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
-    - port: 8080
+    - port: 8082
       protocol: TCP
       targetPort: server
   selector:
