@@ -15,31 +15,37 @@ spec:
       containers:
         - image: hieronymusa/prva_py
           name: fa-users
-          ports:
-            - containerPort: 8082
-              name: server
-              protocol: TCP
           env:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: db-credentials-users
                   key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: db-credentials-users
                   key: password
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
+                  name: db-credentials-users
                   key: database
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secret
-                  key: host
+                  name: db-credentials-users
+                  key: hostname
+          ports:
+            - containerPort: 8082
+              name: server
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health/liveness
+              port: server
+            initialDelaySeconds: 20
+            periodSeconds: 3
 
 ---
 
