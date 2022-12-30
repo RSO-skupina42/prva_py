@@ -1,5 +1,3 @@
-from fastapi import FastAPI
-
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
@@ -8,19 +6,27 @@ from .database import SessionLocal, engine
 
 from fastapi_health import health
 
+from .helpers import get_date_and_time
+
 models.Base.metadata.create_all(bind=engine)
 
 
 def get_ms_status():
+    if broken:
+        return {"status": "broken"}
+    return {"status": "The microservice is working",
+            "date": get_date_and_time()}
+
+
+def is_ms_alive():
+    if broken:
+        return False
     return True
 
 
-def is_ms_alive(session: bool = Depends(get_ms_status)):
-    return session
-
-
 app = FastAPI()
-app.add_api_route("/health", health([is_ms_alive]))
+app.add_api_route("/health/liveness", health([is_ms_alive, get_ms_status]))
+broken = False
 
 
 # Dependency
@@ -93,11 +99,8 @@ async def create_country(country: schemas.CreateCountry, db: Session = Depends(g
     return crud.create_country(db=db, country=country)
 
 
-@app.get("/readiness")
-async def readiness():
-    return {"status": "ok"}
-
-
-@app.get("/liveness")
-async def liveness():
-    return {"status": "ok"}
+@app.post("/break")
+async def break_app():
+    global broken
+    broken = True
+    return {"The app has been broken"}
