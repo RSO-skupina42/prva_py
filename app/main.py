@@ -56,7 +56,10 @@ def is_ms_alive():
     return True
 
 
-app = FastAPI()
+app = FastAPI(
+    root_path="/pusers",
+    docs_url="/openapi"
+)
 origins = [
     "*"
 ]
@@ -71,6 +74,7 @@ app.add_middleware(
 
 Instrumentator().instrument(app).expose(app)
 app.add_api_route("/health/liveness", health([is_ms_alive, get_ms_status]))
+app.add_api_route("/health/readiness", health([is_ms_alive, get_ms_status]))
 broken = False
 database_working = True
 
