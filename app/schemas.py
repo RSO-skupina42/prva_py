@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # User schema
@@ -10,35 +10,37 @@ class CityBase(BaseModel):
     post_code: str
 
 
-class CreateCity(CityBase):
-    id: int
-    pass
-
-
-class City(CityBase):
-    id: int
-    post_number: int
-
-    class Config:
-        orm_mode = True
-
-
 class UserBase(BaseModel):
     name: str
     last_name: str
     foreign_key_cart: int
 
 
+class User(UserBase):
+    id: int
+    city_id: int
+
+    class Config:
+        orm_mode = True
+
+
+class City(CityBase):
+    id: int
+    post_number: int | None = None
+    country_id: int | None = None
+    users: list[User] | None = None
+
+    class Config:
+        orm_mode = True
+
+
 class UserCreate(UserBase):
     pass
 
 
-class User(UserBase):
-    id: int
-    cities: list[City] = []
-
-    class Config:
-        orm_mode = True
+class CreateCity(CityBase):
+    post_number: int
+    pass
 
 
 class UserUpdate(UserBase):
@@ -55,13 +57,12 @@ class CountryBase(BaseModel):
 
 
 class CreateCountry(CountryBase):
-    id: int
     pass
 
 
 class Country(CountryBase):
     id: int
-    cities: list[City] = []
+    cities: list[City] | None = []
 
     class Config:
         orm_mode = True

@@ -1,5 +1,7 @@
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
+from prometheus_fastapi_instrumentator import Instrumentator
+import requests
 
 from . import crud, models, schemas
 from .database import SessionLocal, engine
@@ -7,6 +9,17 @@ from .database import SessionLocal, engine
 from fastapi_health import health
 
 from .helpers import get_date_and_time
+
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://de026afa4ed84d37b803d9fff82b4d7c@o4504420047716352.ingest.sentry.io/4504420048764928",
+
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    # We recommend adjusting this value in production,
+    traces_sample_rate=1.0,
+)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -25,6 +38,7 @@ def is_ms_alive():
 
 
 app = FastAPI()
+Instrumentator().instrument(app).expose(app)
 app.add_api_route("/health/liveness", health([is_ms_alive, get_ms_status]))
 broken = False
 
@@ -79,7 +93,7 @@ async def get_cities(skip: int = 0, limit: int = 100, db: Session = Depends(get_
 # for creating a city
 @app.post("/cities/", response_model=schemas.City)
 async def create_city(city: schemas.CreateCity, db: Session = Depends(get_db)):
-    db_city = crud.get_city(db, city_id=city.id)
+    db_city = crud.get_city(db, post_code=city.post_code)
     if db_city:
         raise HTTPException(status_code=400, detail="City already registered")
     return crud.create_city(db=db, city=city)
@@ -93,7 +107,7 @@ async def get_countries(skip: int = 0, limit: int = 100, db: Session = Depends(g
 
 @app.post("/countries/", response_model=schemas.Country)
 async def create_country(country: schemas.CreateCountry, db: Session = Depends(get_db)):
-    db_country = crud.get_country(db, country_id=country.id)
+    db_country = crud.get_country(db, country_code=country.country_code)
     if db_country:
         raise HTTPException(status_code=400, detail="Country already registered")
     return crud.create_country(db=db, country=country)
@@ -104,3 +118,19 @@ async def break_app():
     global broken
     broken = True
     return {"The app has been broken"}
+
+
+# sentry error trigger
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
+
+
+@app.post("/countries/{country_id}/cities/", response_model=schemas.City)
+def create_city_for_country(country_id: int, city: schemas.CreateCity, db: Session = Depends(get_db)):
+    return crud.create_country_city(db=db, city=city, country_id=country_id)
+
+
+@app.post("/cities/{city_id}/users/", response_model=schemas.User)
+def create_user_for_city(city_id: int, user: schemas.UserCreate, db: Session = Depends(get_db)):
+    return crud.create_city_user(db=db, user=user, city_id=city_id)

@@ -42,8 +42,8 @@ def update_user(db: Session, user_id: int, user: schemas.UserUpdate):
     return db_user
 
 
-def get_city(db: Session, city_id: int):
-    return db.query(models.City).filter(models.City.id == city_id).first()
+def get_city(db: Session, post_code: str):
+    return db.query(models.City).filter(models.City.post_code == post_code).first()
 
 
 def get_cities(db: Session, skip: int = 0, limit: int = 100):
@@ -51,7 +51,7 @@ def get_cities(db: Session, skip: int = 0, limit: int = 100):
 
 
 def create_city(db: Session, city: schemas.CreateCity):
-    db_city = models.City(city_name=city.city_name, post_code=city.post_code)
+    db_city = models.City(city_name=city.city_name, post_code=city.post_code, post_number=city.post_number)
     db.add(db_city)
     db.commit()
     db.refresh(db_city)
@@ -65,8 +65,8 @@ def delete_city(db: Session, city_id: int):
     return db_city
 
 
-def get_country(db: Session, country_id: int):
-    return db.query(models.Country).filter(models.Country.id == country_id).first()
+def get_country(db: Session, country_code: str):
+    return db.query(models.Country).filter(models.Country.country_code == country_code).first()
 
 
 def get_countries(db: Session, skip: int = 0, limit: int = 100):
@@ -79,3 +79,19 @@ def create_country(db: Session, country: schemas.CreateCountry):
     db.commit()
     db.refresh(db_country)
     return db_country
+
+
+def create_country_city(db: Session, city: schemas.CreateCity, country_id: int):
+    db_city = models.City(**city.dict(), country_id=country_id)
+    db.add(db_city)
+    db.commit()
+    db.refresh(db_city)
+    return db_city
+
+
+def create_city_user(db: Session, user: schemas.UserCreate, city_id: int):
+    db_user = models.User(**user.dict(), city_id=city_id)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
