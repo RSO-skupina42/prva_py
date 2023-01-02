@@ -1,10 +1,11 @@
+import psycopg2
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 from prometheus_fastapi_instrumentator import Instrumentator
 import requests
 
 from . import crud, models, schemas
-from .database import SessionLocal, engine
+from .database import SessionLocal, engine, hostname, username, password, database
 
 from fastapi_health import health
 
@@ -24,15 +25,30 @@ sentry_sdk.init(
 models.Base.metadata.create_all(bind=engine)
 
 
+def check_db_connection():
+    try:
+        conn = psycopg2.connect(f"dbname={database} user={username} host={hostname} password={password} "
+                                f"connect_timeout=1")
+        conn.close()
+        return True
+    except:
+        print("I am unable to connect to the database")
+        return False
+
+
 def get_ms_status():
-    if broken:
+    global database_working
+    database_working = check_db_connection()
+    print(broken, database_working)
+    if broken or not database_working:
         return {"status": "broken"}
-    return {"status": "The microservice is working",
+    return {"status_ms": "The microservice is working",
+            "status_db": "Database is working and connected to the microservice",
             "date": get_date_and_time()}
 
 
 def is_ms_alive():
-    if broken:
+    if broken or not database_working:
         return False
     return True
 
@@ -41,6 +57,7 @@ app = FastAPI()
 Instrumentator().instrument(app).expose(app)
 app.add_api_route("/health/liveness", health([is_ms_alive, get_ms_status]))
 broken = False
+database_working = True
 
 
 # Dependency
