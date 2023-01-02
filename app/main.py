@@ -12,6 +12,9 @@ from fastapi_health import health
 from .helpers import get_date_and_time
 
 import sentry_sdk
+import aiohttp
+
+from fastapi.middleware.cors import CORSMiddleware
 
 sentry_sdk.init(
     dsn="https://de026afa4ed84d37b803d9fff82b4d7c@o4504420047716352.ingest.sentry.io/4504420048764928",
@@ -54,6 +57,18 @@ def is_ms_alive():
 
 
 app = FastAPI()
+origins = [
+    "*"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 Instrumentator().instrument(app).expose(app)
 app.add_api_route("/health/liveness", health([is_ms_alive, get_ms_status]))
 broken = False
@@ -85,6 +100,8 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_name_and_last_name(db, name=user.name, last_name=user.last_name)
     if db_user:
         raise HTTPException(status_code=400, detail="User already registered")
+    # TODO first create kosarica by calling Anžes microservice, and get the id of the kosarica
+    # and use it to create the user
     return crud.create_user(db=db, user=user)
 
 
@@ -99,6 +116,11 @@ async def delete_user(user_id: int, db: Session = Depends(get_db)):
 @app.get("/users/{id}")
 async def get_user(id: int):
     return f"This is the id that was sent through {id}."
+
+
+@app.post("/users/login", response_model=schemas.User)
+async def get_user_with_name_and_last_name(user: schemas.UserBase, db: Session = Depends(get_db)):
+    return crud.get_user_by_name_and_last_name(db, name=user.name, last_name=user.last_name)
 
 
 @app.get("/cities", response_model=list[schemas.City])
@@ -151,3 +173,12 @@ def create_city_for_country(country_id: int, city: schemas.CreateCity, db: Sessi
 @app.post("/cities/{city_id}/users/", response_model=schemas.User)
 def create_user_for_city(city_id: int, user: schemas.UserCreate, db: Session = Depends(get_db)):
     return crud.create_city_user(db=db, user=user, city_id=city_id)
+
+
+@app.get("/try_vreme")
+async def get_vreme():
+    url = "http://20.54.18.220/recommend/priporocila/Ljubljana"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            data = await resp.json()
+    return {"This is the weather": data}
