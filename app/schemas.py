@@ -18,7 +18,7 @@ class UserBase(BaseModel):
 
 class User(UserBase):
     id: int
-    city_id: int
+    city_id: int | None
 
     class Config:
         orm_mode = True
