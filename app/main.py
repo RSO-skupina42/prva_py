@@ -27,12 +27,24 @@ sentry_sdk.init(
 
 models.Base.metadata.create_all(bind=engine)
 
+broken = False
 
-def check_db_connection():
+
+def check_db_connection(check_db_free=False):
     try:
         conn = psycopg2.connect(f"dbname={database} user={username} host={hostname} password={password} "
                                 f"connect_timeout=1")
+        cursor = conn.cursor()
+        db_space_left_mb = -1
+        if check_db_free is True:
+            cursor.execute("SELECT pg_database_size( current_database() )")
+            db_space_left_mb = 20 - cursor.fetchall()[0][0] / 1024 / 1024
+        cursor.close()
         conn.close()
+        if db_space_left_mb != -1:
+            if db_space_left_mb > 5:
+                return True
+            return False
         return True
     except:
         print("I am unable to connect to the database")
@@ -40,20 +52,44 @@ def check_db_connection():
 
 
 def get_ms_status():
-    global database_working
-    database_working = check_db_connection()
-    print(broken, database_working)
-    if broken or not database_working:
-        return {"status": "broken"}
-    return {"status_ms": "The microservice is working",
-            "status_db": "Database is working and connected to the microservice",
-            "date": get_date_and_time()}
+    global broken
+    return not broken
+    # global database_working
+    # database_working = check_db_connection()
+    # print(broken, database_working)
+    # if broken or not database_working:
+    #     return {"status": "broken"}
+    # return {"status_ms": "The microservice is working",
+    #         "status_db": "Database is working and connected to the microservice",
+    #         "date": get_date_and_time()}
 
 
 def is_ms_alive():
     if broken or not database_working:
         return False
     return True
+
+
+def check_db_conn():
+    return check_db_connection()
+
+
+def check_db_space_left():
+    return check_db_connection(True)
+
+
+async def health_success_failure_handler(**conditions):
+    rez = {"status": "UP", "checks": []}
+    for cond in conditions:
+        to_add = {
+            "name": cond,
+            "status": conditions[cond]
+        }
+        rez["checks"].append(to_add)
+        if not conditions[cond]:
+            rez["status"] = "DOWN"
+    return rez
+
 
 
 app = FastAPI(
@@ -73,9 +109,12 @@ app.add_middleware(
 )
 
 Instrumentator().instrument(app).expose(app)
-app.add_api_route("/health/liveness", health([is_ms_alive, get_ms_status]))
-app.add_api_route("/health/readiness", health([is_ms_alive, get_ms_status]))
-broken = False
+
+health_handler = health([get_ms_status, check_db_conn, check_db_space_left],
+                        success_handler=health_success_failure_handler,
+                        failure_handler=health_success_failure_handler)
+app.add_api_route("/health/liveness", health_handler, name="check liveness")
+app.add_api_route("/health/readiness", health_handler, name="check readiness")
 database_working = True
 
 
