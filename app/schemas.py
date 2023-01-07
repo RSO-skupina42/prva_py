@@ -13,7 +13,7 @@ class CityBase(BaseModel):
 class UserBase(BaseModel):
     name: str
     last_name: str
-    foreign_key_cart: int
+    foreign_key_cart: int | None = None
 
 
 class User(UserBase):

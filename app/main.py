@@ -144,6 +144,11 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="User already registered")
     # TODO first create kosarica by calling Anžes microservice, and get the id of the kosarica
+    async with aiohttp.ClientSession() as session:
+        async with session.post('http://20.54.18.220/kosaricems/kosarice/', json={"imeKosarice": f"{user.name}{user.last_name}"}) as resp:
+            kosarica = await resp.json()
+    kosarica_id = kosarica["id"]
+    user.foreign_key_cart = kosarica_id
     # and use it to create the user
     return crud.create_user(db=db, user=user)
 
