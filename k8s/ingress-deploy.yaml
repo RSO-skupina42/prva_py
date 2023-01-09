@@ -73,7 +73,7 @@ spec:
             service:
               name: frontend-vue
               port:
-                number: 8080
+                number: 8353
 
 #kubectl get ingress
 
