@@ -17,12 +17,16 @@ import aiohttp
 from fastapi.middleware.cors import CORSMiddleware
 
 sentry_sdk.init(
-    dsn="https://de026afa4ed84d37b803d9fff82b4d7c@o4504420047716352.ingest.sentry.io/4504420048764928",
+    dsn="https://60d860690425432bb80de5af728ffe3b@o4504418811641857.ingest.sentry.io/4504418813280256",
 
     # Set traces_sample_rate to 1.0 to capture 100%
     # of transactions for performance monitoring.
     # We recommend adjusting this value in production,
     traces_sample_rate=1.0,
+    debug=True,
+    server_name="uporabniki",
+    release="v1.0.0",
+    environment="production"
 )
 
 models.Base.metadata.create_all(bind=engine)
@@ -90,13 +94,13 @@ async def health_success_failure_handler(**conditions):
             rez["status"] = "DOWN"
     return rez
 
+
 tags_metadata = [
     {"name": "users"},
     {"name": "cities"},
     {"name": "countries"},
     {"name": "health"},
 ]
-
 
 app = FastAPI(
     root_path="/pusers",
