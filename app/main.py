@@ -13,6 +13,7 @@ from .helpers import get_date_and_time
 
 import sentry_sdk
 import aiohttp
+from sentry_sdk import set_level
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -23,11 +24,12 @@ sentry_sdk.init(
     # of transactions for performance monitoring.
     # We recommend adjusting this value in production,
     traces_sample_rate=1.0,
-    debug=True,
+    debug=False,
     server_name="uporabniki",
     release="v1.0.0",
     environment="production"
 )
+set_level("info")
 
 models.Base.metadata.create_all(bind=engine)
 
