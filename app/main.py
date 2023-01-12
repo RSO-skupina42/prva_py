@@ -90,11 +90,18 @@ async def health_success_failure_handler(**conditions):
             rez["status"] = "DOWN"
     return rez
 
+tags_metadata = [
+    {"name": "users"},
+    {"name": "cities"},
+    {"name": "countries"},
+    {"name": "health"},
+]
 
 
 app = FastAPI(
     root_path="/pusers",
-    docs_url="/openapi"
+    docs_url="/openapi",
+    openapi_tags=tags_metadata,
 )
 origins = [
     "*"
@@ -113,8 +120,8 @@ Instrumentator().instrument(app).expose(app)
 health_handler = health([get_ms_status, check_db_conn, check_db_space_left],
                         success_handler=health_success_failure_handler,
                         failure_handler=health_success_failure_handler)
-app.add_api_route("/health/liveness", health_handler, name="check liveness")
-app.add_api_route("/health/readiness", health_handler, name="check readiness")
+app.add_api_route("/health/liveness", health_handler, name="check liveness", tags=["health"])
+app.add_api_route("/health/readiness", health_handler, name="check readiness", tags=["health"])
 database_working = True
 
 
@@ -132,20 +139,21 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.get("/users", response_model=list[schemas.User])
+@app.get("/users", response_model=list[schemas.User], tags=["users"])
 async def get_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = crud.get_users(db, skip=skip, limit=limit)
     return users
 
 
-@app.post("/users/", response_model=schemas.User)
+@app.post("/users/", response_model=schemas.User, tags=["users"])
 async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_name_and_last_name(db, name=user.name, last_name=user.last_name)
     if db_user:
         raise HTTPException(status_code=400, detail="User already registered")
     # TODO first create kosarica by calling Anžes microservice, and get the id of the kosarica
     async with aiohttp.ClientSession() as session:
-        async with session.post('http://20.54.18.220/kosaricems/kosarice/', json={"imeKosarice": f"{user.name}{user.last_name}"}) as resp:
+        async with session.post('http://20.54.18.220/kosaricems/kosarice/',
+                                json={"imeKosarice": f"{user.name}{user.last_name}"}) as resp:
             kosarica = await resp.json()
     kosarica_id = kosarica["id"]
     user.foreign_key_cart = kosarica_id
@@ -153,7 +161,7 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return crud.create_user(db=db, user=user)
 
 
-@app.delete("/users/{user_id}", response_model=schemas.User)
+@app.delete("/users/{user_id}", response_model=schemas.User, tags=["users"])
 async def delete_user(user_id: int, db: Session = Depends(get_db)):
     db_user = crud.get_user(db, user_id=user_id)
     if db_user is None:
@@ -166,19 +174,19 @@ async def get_user(id: int):
     return f"This is the id that was sent through {id}."
 
 
-@app.post("/users/login", response_model=schemas.User)
+@app.post("/users/login", response_model=schemas.User, tags=["users"])
 async def get_user_with_name_and_last_name(user: schemas.UserBase, db: Session = Depends(get_db)):
     return crud.get_user_by_name_and_last_name(db, name=user.name, last_name=user.last_name)
 
 
-@app.get("/cities", response_model=list[schemas.City])
+@app.get("/cities", response_model=list[schemas.City], tags=["cities"])
 async def get_cities(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     cities = crud.get_cities(db, skip=skip, limit=limit)
     return cities
 
 
 # for creating a city
-@app.post("/cities/", response_model=schemas.City)
+@app.post("/cities/", response_model=schemas.City, tags=["cities"])
 async def create_city(city: schemas.CreateCity, db: Session = Depends(get_db)):
     db_city = crud.get_city(db, post_code=city.post_code)
     if db_city:
@@ -186,13 +194,13 @@ async def create_city(city: schemas.CreateCity, db: Session = Depends(get_db)):
     return crud.create_city(db=db, city=city)
 
 
-@app.get("/countries", response_model=list[schemas.Country])
+@app.get("/countries", response_model=list[schemas.Country], tags=["countries"])
 async def get_countries(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     countries = crud.get_countries(db, skip=skip, limit=limit)
     return countries
 
 
-@app.post("/countries/", response_model=schemas.Country)
+@app.post("/countries/", response_model=schemas.Country, tags=["countries"])
 async def create_country(country: schemas.CreateCountry, db: Session = Depends(get_db)):
     db_country = crud.get_country(db, country_code=country.country_code)
     if db_country:
@@ -200,7 +208,7 @@ async def create_country(country: schemas.CreateCountry, db: Session = Depends(g
     return crud.create_country(db=db, country=country)
 
 
-@app.post("/break")
+@app.post("/break", tags=["health"])
 async def break_app():
     global broken
     broken = True
@@ -213,12 +221,12 @@ async def trigger_error():
     division_by_zero = 1 / 0
 
 
-@app.post("/countries/{country_id}/cities/", response_model=schemas.City)
+@app.post("/countries/{country_id}/cities/", response_model=schemas.City, tags=["countries"])
 def create_city_for_country(country_id: int, city: schemas.CreateCity, db: Session = Depends(get_db)):
     return crud.create_country_city(db=db, city=city, country_id=country_id)
 
 
-@app.post("/cities/{city_id}/users/", response_model=schemas.User)
+@app.post("/cities/{city_id}/users/", response_model=schemas.User, tags=["cities"])
 def create_user_for_city(city_id: int, user: schemas.UserCreate, db: Session = Depends(get_db)):
     return crud.create_city_user(db=db, user=user, city_id=city_id)
 
